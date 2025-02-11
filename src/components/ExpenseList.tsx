@@ -10,12 +10,15 @@ import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
+import ClearIcon from '@mui/icons-material/Clear';
+import CheckIcon from '@mui/icons-material/Check';
 import Typography from "@mui/material/Typography";
 import { TextField } from "@mui/material";
 import { useState } from "react";
+import { v4 as uuidv4 } from "uuid";
 
 interface Expense {
-  id: number;
+  id: string;
   name: string;
   amount: number;
   description: string;
@@ -28,18 +31,26 @@ function ExpenseList() {
   const [expenseAmount, setExpenseAmount] = useState("");
   const [expenseDescription, setExpenseDescription] = useState("");
   const [expenseLastModified, setExpenseLastModified] = useState("");
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [editedExpense, setEditedExpense] = useState<Partial<Expense>>({});
+
+  const formatId = (str: string) => {
+    return str.slice(0, 5);
+  };
 
   const handleAddExpense = () => {
     if (!expenseName || !expenseAmount) {
       alert("'Name' and 'Amount' fields cannot be blank!");
       return;
     }
+    setExpenseLastModified(String(Date.now()));
+    const newId = uuidv4();
     const newExpense: Expense = {
-      id: Date.now(),
+      id: formatId(newId),
       name: expenseName,
       amount: parseFloat(String(expenseAmount)),
       description: expenseDescription || "-",
-      dateModified: Date.now().toLocaleString(),
+      dateModified: expenseLastModified,
     };
     setExpenses([...expenses, newExpense]);
     setExpenseName("");
@@ -47,26 +58,45 @@ function ExpenseList() {
     setExpenseDescription("");
   };
 
-  const handleEditExpense = (
-    id?: number,
-    updatedName?: string,
-    updatedAmount?: number,
-    updatedDescription?: string
-  ) => {
-    const editedExpenses = expenses.map((expense) =>
-      expense.id === id
-        ? {
-            ...expense,
-            name: updatedName ?? expense.name,
-            amount: updatedAmount ?? expense.amount,
-            description: updatedDescription ?? expense.description,
-          }
-        : expense
-    );
-    setExpenses(editedExpenses);
+  const handleEditClick = (expense: Expense) => {
+    setEditingExpenseId(expense.id);
+    setEditedExpense({ ...expense });
   };
 
-  const handleDeleteExpense = (id: number) => {
+  const handleSaveExpense = (id: string) => {
+    setExpenses(
+      expenses.map((expense) =>
+        expense.id === id ? { ...expense, ...editedExpense } : expense
+      )
+    );
+    setEditingExpenseId(null);
+    setEditedExpense({});
+  };
+
+  const handleCancelEdit = () => {
+    setEditingExpenseId(null);
+    setEditedExpense({});
+  };
+  // const handleEditExpense = (
+  //   id?: number,
+  //   updatedName?: string,
+  //   updatedAmount?: number,
+  //   updatedDescription?: string
+  // ) => {
+  //   const editedExpenses = expenses.map((expense) =>
+  //     expense.id === id
+  //       ? {
+  //           ...expense,
+  //           name: updatedName ?? expense.name,
+  //           amount: updatedAmount ?? expense.amount,
+  //           description: updatedDescription ?? expense.description,
+  //         }
+  //       : expense
+  //   );
+  //   setExpenses(editedExpenses);
+  // };
+
+  const handleDeleteExpense = (id: string) => {
     setExpenses(expenses.filter((expense) => expense.id !== id));
   };
 
@@ -145,18 +175,59 @@ function ExpenseList() {
             {expenses.map((expense) => (
               <TableRow key={expense.id}>
                 <TableCell>{expense.id}</TableCell>
-                <TableCell>{expense.name}</TableCell>
-                <TableCell>${expense.amount.toFixed(2)}</TableCell>
-                <TableCell>{expense.description}</TableCell>
-                <TableCell>{expense.dateModified}</TableCell>
-                <TableCell align="right">
-                  <IconButton onClick={handleEditExpense}>
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton onClick={() => handleDeleteExpense(expense.id)}>
-                    <DeleteIcon />
-                  </IconButton>
-                </TableCell>
+                {editingExpenseId === expense.id ? (
+                  <>
+                    <TableCell className="uniform-cell">
+                      <TextField type="text" size="small" value={editedExpense.name || ""} onChange={(e) => setEditedExpense((prev) => ({
+                        ...prev,
+                        name: e.target.value
+                      }))} />
+                    </TableCell>
+                    <TableCell className="uniform-cell">
+                      <TextField type="number" size="small" value={editedExpense.amount || ""} onChange={(e) => setEditedExpense((prev) => ({
+                        ...prev,
+                        amount: parseFloat(e.target.value)
+                      }))} />
+                    </TableCell>
+                    <TableCell className="uniform-cell">
+                      <TextField type="text" size="small" value={editedExpense.description || ""} onChange={(e) => setEditedExpense((prev) => ({
+                        ...prev,
+                        description: e.target.value
+                      }))} />
+                    </TableCell>
+                    <TableCell className="uniform-cell">
+                      <TextField size="small" value={editedExpense.dateModified || ""} onChange={() => setEditedExpense((prev) => ({
+                        ...prev,
+                        dateModified: String(Date.now())
+                      }))} />
+                    </TableCell>
+                    <TableCell align="right">
+                      <IconButton onClick={handleCancelEdit}>
+                        <ClearIcon />
+                      </IconButton>
+                      <IconButton onClick={() => {handleSaveExpense(expense.id)}}>
+                        <CheckIcon />
+                      </IconButton>
+                    </TableCell>
+                  </>
+                ) : (
+                  <>
+                    <TableCell className="uniform-cell" >{expense.name}</TableCell>
+                    <TableCell className="uniform-cell" >${expense.amount.toFixed(2)}</TableCell>
+                    <TableCell className="uniform-cell" >{expense.description}</TableCell>
+                    <TableCell className="uniform-cell" >{expense.dateModified}</TableCell>
+                    <TableCell align="right">
+                      <IconButton onClick={() => handleEditClick(expense)}>
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        onClick={() => handleDeleteExpense(expense.id)}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  </>
+                )}
               </TableRow>
             ))}
           </TableBody>
