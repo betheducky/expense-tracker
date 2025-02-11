@@ -10,12 +10,17 @@ import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
-import ClearIcon from '@mui/icons-material/Clear';
-import CheckIcon from '@mui/icons-material/Check';
+import ClearIcon from "@mui/icons-material/Clear";
+import CheckIcon from "@mui/icons-material/Check";
 import Typography from "@mui/material/Typography";
+
 import { TextField } from "@mui/material";
 import { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
+
+import { useSelector, useDispatch } from "react-redux";
+import { RootState } from "../redux/store";
+import { addExpense, editExpense, deleteExpense } from "../redux/expenseSlice";
 
 interface Expense {
   id: string;
@@ -26,13 +31,14 @@ interface Expense {
 }
 
 function ExpenseList() {
-  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [expenseName, setExpenseName] = useState("");
   const [expenseAmount, setExpenseAmount] = useState("");
   const [expenseDescription, setExpenseDescription] = useState("");
-  const [expenseLastModified, setExpenseLastModified] = useState("");
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [editedExpense, setEditedExpense] = useState<Partial<Expense>>({});
+
+  const expenses = useSelector((state: RootState) => state.expenses.expenses);
+  const dispatch = useDispatch();
 
   const formatId = (str: string) => {
     return str.slice(0, 5);
@@ -43,16 +49,16 @@ function ExpenseList() {
       alert("'Name' and 'Amount' fields cannot be blank!");
       return;
     }
-    setExpenseLastModified(String(Date.now()));
+
     const newId = uuidv4();
     const newExpense: Expense = {
       id: formatId(newId),
       name: expenseName,
       amount: parseFloat(String(expenseAmount)),
       description: expenseDescription || "-",
-      dateModified: expenseLastModified,
+      dateModified: String(Date.now()),
     };
-    setExpenses([...expenses, newExpense]);
+    dispatch(addExpense(newExpense));
     setExpenseName("");
     setExpenseAmount("");
     setExpenseDescription("");
@@ -64,11 +70,21 @@ function ExpenseList() {
   };
 
   const handleSaveExpense = (id: string) => {
-    setExpenses(
-      expenses.map((expense) =>
-        expense.id === id ? { ...expense, ...editedExpense } : expense
-      )
-    );
+
+    if (!editedExpense.name || !editedExpense.amount) {
+      alert("'Name' and 'Amount' fields cannot be blank!");
+      return;
+    }
+
+  const updatedExpense: Expense = {
+    id: id,
+    name: editedExpense.name,
+    amount: editedExpense.amount,
+    description: editedExpense.description || "-",
+    dateModified: String(Date.now())
+  }
+
+    dispatch(editExpense(updatedExpense));
     setEditingExpenseId(null);
     setEditedExpense({});
   };
@@ -77,27 +93,9 @@ function ExpenseList() {
     setEditingExpenseId(null);
     setEditedExpense({});
   };
-  // const handleEditExpense = (
-  //   id?: number,
-  //   updatedName?: string,
-  //   updatedAmount?: number,
-  //   updatedDescription?: string
-  // ) => {
-  //   const editedExpenses = expenses.map((expense) =>
-  //     expense.id === id
-  //       ? {
-  //           ...expense,
-  //           name: updatedName ?? expense.name,
-  //           amount: updatedAmount ?? expense.amount,
-  //           description: updatedDescription ?? expense.description,
-  //         }
-  //       : expense
-  //   );
-  //   setExpenses(editedExpenses);
-  // };
 
   const handleDeleteExpense = (id: string) => {
-    setExpenses(expenses.filter((expense) => expense.id !== id));
+    dispatch(deleteExpense(id));
   };
 
   const handleClearFields = () => {
@@ -167,55 +165,95 @@ function ExpenseList() {
               <TableCell>Name</TableCell>
               <TableCell>Amount</TableCell>
               <TableCell>Description</TableCell>
-              <TableCell>Date</TableCell>
+              <TableCell>Date Modified</TableCell>
               <TableCell></TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {expenses.map((expense) => (
+            {expenses.map((expense: Expense) => (
               <TableRow key={expense.id}>
                 <TableCell>{expense.id}</TableCell>
                 {editingExpenseId === expense.id ? (
                   <>
                     <TableCell className="uniform-cell">
-                      <TextField type="text" size="small" value={editedExpense.name || ""} onChange={(e) => setEditedExpense((prev) => ({
-                        ...prev,
-                        name: e.target.value
-                      }))} />
+                      <TextField
+                        type="text"
+                        size="small"
+                        value={editedExpense.name || ""}
+                        onChange={(e) =>
+                          setEditedExpense((prev) => ({
+                            ...prev,
+                            name: e.target.value,
+                          }))
+                        }
+                      />
                     </TableCell>
                     <TableCell className="uniform-cell">
-                      <TextField type="number" size="small" value={editedExpense.amount || ""} onChange={(e) => setEditedExpense((prev) => ({
-                        ...prev,
-                        amount: parseFloat(e.target.value)
-                      }))} />
+                      <TextField
+                        type="number"
+                        size="small"
+                        value={editedExpense.amount || ""}
+                        onChange={(e) =>
+                          setEditedExpense((prev) => ({
+                            ...prev,
+                            amount: parseFloat(e.target.value),
+                          }))
+                        }
+                      />
                     </TableCell>
                     <TableCell className="uniform-cell">
-                      <TextField type="text" size="small" value={editedExpense.description || ""} onChange={(e) => setEditedExpense((prev) => ({
-                        ...prev,
-                        description: e.target.value
-                      }))} />
+                      <TextField
+                        type="text"
+                        size="small"
+                        value={editedExpense.description || ""}
+                        onChange={(e) =>
+                          setEditedExpense((prev) => ({
+                            ...prev,
+                            description: e.target.value,
+                          }))
+                        }
+                      />
                     </TableCell>
                     <TableCell className="uniform-cell">
-                      <TextField size="small" value={editedExpense.dateModified || ""} onChange={() => setEditedExpense((prev) => ({
-                        ...prev,
-                        dateModified: String(Date.now())
-                      }))} />
+                      <TextField
+                        disabled
+                        size="small"
+                        value={""}
+                        onChange={() =>
+                          setEditedExpense((prev) => ({
+                            ...prev,
+                            dateModified: String(Date.now()),
+                          }))
+                        }
+                      />
                     </TableCell>
                     <TableCell align="right">
                       <IconButton onClick={handleCancelEdit}>
                         <ClearIcon />
                       </IconButton>
-                      <IconButton onClick={() => {handleSaveExpense(expense.id)}}>
+                      <IconButton
+                        onClick={() => {
+                          handleSaveExpense(expense.id);
+                        }}
+                      >
                         <CheckIcon />
                       </IconButton>
                     </TableCell>
                   </>
                 ) : (
                   <>
-                    <TableCell className="uniform-cell" >{expense.name}</TableCell>
-                    <TableCell className="uniform-cell" >${expense.amount.toFixed(2)}</TableCell>
-                    <TableCell className="uniform-cell" >{expense.description}</TableCell>
-                    <TableCell className="uniform-cell" >{expense.dateModified}</TableCell>
+                    <TableCell className="uniform-cell">
+                      {expense.name}
+                    </TableCell>
+                    <TableCell className="uniform-cell">
+                      ${expense.amount.toFixed(2)}
+                    </TableCell>
+                    <TableCell className="uniform-cell">
+                      {expense.description}
+                    </TableCell>
+                    <TableCell className="uniform-cell">
+                      {expense.dateModified}
+                    </TableCell>
                     <TableCell align="right">
                       <IconButton onClick={() => handleEditClick(expense)}>
                         <EditIcon />
